@@ -96,6 +96,7 @@ target-equipment selectionセル（`Circle`/`Mark`/`Tick the target equipment`�
 
 | Date | Summary | Project | Verified SOP |
 |---|---|---|---|
+| 2026-08-13 | フローチャート画像のバイリンガル再作成を必須化（SOP-306の英語のみを既知欠陥に記録）・PIL再作成パターン（色抽出→同サイズ再描画→画像差替）を追加 | KSW | SOP-309 Fire Pump Testing |
 | 2026-08-13 | KSW `03→04`ワンパスワークフローと文書保持XML挿入パターン（別段落クローン・見出し` / 日`インライン・`\n`→`w:br`・保護データ・QA 3ゲート）を追加 | KSW | SOP-309 Fire Pump Testing |
 | 2026-08-13 | 初版：プロジェクト別フォーマット管理スキル（KIX1/KSW/STACK共通基盤・読み取り専用QAスクリプト） | 共通 | — |
 
