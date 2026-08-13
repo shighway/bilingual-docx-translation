@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 一時・成果物（原文・出力docxは各プロジェクト作業フォルダで管理、リポジトリには入れない）
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pdf
+*.zip
+*.tmp
+*.bak
+
+# キャッシュ・ログ
+*.log
+.cache/

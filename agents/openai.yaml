@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bilingual DOCX Translation (Project-aware)"
+  short_description: "Translate data-center EOP/SOP Word documents into format-preserving bilingual EN+JP with per-project rules"
+  default_prompt: "Use $bilingual-docx-translation to translate or revise this data-center EOP/SOP DOCX as a verified English-Japanese bilingual file. First identify the project (KIX1/KSW/STACK), read the matching projects/<project>.md rule file, then apply the common workflow and project-specific format and terminology rules. Preserve the source DOCX as the controlling document, never rebuild from scratch, and run the audit scripts before delivery."

@@ -1,0 +1,17 @@
+# 改行コード正規化：チェックアウト時はOS標準、コミット時はLF
+* text=auto eol=lf
+
+# Windowsバッチ/スクリプトはCRLF維持
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# バイナリ（念のため）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.docx binary
+*.xlsx binary
+*.pdf binary
+*.zip binary
