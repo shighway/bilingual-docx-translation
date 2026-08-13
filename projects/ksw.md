@@ -149,3 +149,21 @@ KSW核心用語の抜粋（完全版は同僚スキル `references/ksw-translati
 - KSW-SOP-208 Step C33：日本語訳なしの英語タッチパネル指示 → 完全性チェックで英語のみの手順セルを検出すべき。
 - KSW-SOP-209：`≤3°C` と `<3℃` の不一致 → 不等号と閾値は調整要の技術データ。
 - `盤`/`パネル`/`盤の扉`/`パネルドア` の交代 → 実際の機器名称を使用し、同一手順内の同一対象は1用語に統一。
+
+## 03→04ワークフローと実装パターン（SOP-306/309検証）
+
+各KSW SOPのドラフト構造：`01 First Draft` → `02 First Draft Comments` → `03 Second Draft`（翻訳ベース）→ `04 Bilingual Procedure`（出力）。
+
+- `04`は`03 Second Draft`から作成（`01`/`02`不可）。`02`コメントは`03`に取り込み済み。
+- `04`フォルダ構造は参照SOP（SOP-306等）を踏襲：`00. Archive/`、`01. Reference drawings and documents/`、`02. Reference screenshots and photos/`、＋bilingual docx。参照PDF/写真は`03`から`04`へコピー。
+- `03`投下→`04`完成をワンパスで：構造監査→インベントリ→翻訳→挿入→QA。
+
+文書保持XML挿入（SOP-309検証）:
+
+- **別段落形式**（SOP-306プレセデント）：英語段落の直後に、`deepcopy`した日本語段落（先頭runフォーマット・テキスト差替）を挿入。1ステップ内は完全英ブロック→完全日ブロック。
+- **日本語内の`\n`は`w:br`に分割**（`w:t`内リテラル`\n`はWordで改行されない）。
+- **下線内部見出し・Part見出し**：同段落に` / 日本語`を末尾runフォーマットで追記（下線・色維持）。第2の訳見出し段落を追加しない。
+- **保護データは英語維持**：target-equipmentチェックボックス行（`□FP-1`等、指示段落のみ翻訳）、`[Attach Photo]`/`[Insert … Screenshot]`フラグ、写真（`wp:inline`）、赤stop-workバナー、`END PLANNED FIELD SWITCHING PLAN`、`BACKOUT PLAN OPTIONS`表全体、管理/事前実行セクション、Document Control。
+- **フローチャート**：`Flowchart:`見出しのみインライン` / フローチャート:`化。ラスター画像自体は参照プレセデントが英語のみなら英語維持し、バイリンガル再作成はレビュー課題に挙げる。
+- **ヘルパー**：`insert_jp_after(en_p, jp)`（段落クローン・run再構成・`w:br`分割挿入）、`append_inline(p, jp)`（見出し末尾に` / 日`追記）、`replace_text(p, text)`（見出し正規化）。挿入は段落インデックスではなく**要素参照**で（挿入で後続インデックスがずれるため）。`deepcopy`が`pPr`/`numPr`を保つので自動Part/itemナンバリングとリストレベルは保持される。
+- **QA 3ゲート**：(1) `audit_docx.py SOURCE BILINGUAL` — tables/inline_shapes/media/自動番号セル/package_parts/クライアント名候補が原文と完全一致、上昇するのは`table_paragraphs`と`japanese_paragraphs`のみ。(2) 全手順セルの英日ペアダンプで、各英語アクションに日本語ペアがあるか・保護データ未処理・英語維持セクション維持を確認。(3) Word COM（`Documents.Open`＋`SaveAs` PDF）で再保存し、修復ダイアログが出ないことを確認。修復報告があればそのリビジョン破棄→`03`から再ビルド。
