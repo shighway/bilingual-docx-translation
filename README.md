@@ -89,3 +89,35 @@ target-equipment selectionセル（`Circle`/`Mark`/`Tick the target equipment`�
 - KSW：同僚の `ksw-bilingual-docx-translation`スキル（完全ルールリファレンス・標準文型・参照欠陥リストを保持）
 
 本スキルは両者の共通要素を抽象化した汎用基盤。固有要素の完全版は各運用元スキルを参照。
+
+## Revision History
+
+新しい順。変更を加えたら末尾の行を追加すること（日付・概要・対象プロジェクト・検証SOPが分かれば明記）。
+
+| Date | Summary | Project | Verified SOP |
+|---|---|---|---|
+| 2026-08-13 | KSW `03→04`ワンパスワークフローと文書保持XML挿入パターン（別段落クローン・見出し` / 日`インライン・`\n`→`w:br`・保護データ・QA 3ゲート）を追加 | KSW | SOP-309 Fire Pump Testing |
+| 2026-08-13 | 初版：プロジェクト別フォーマット管理スキル（KIX1/KSW/STACK共通基盤・読み取り専用QAスクリプト） | 共通 | — |
+
+## Contributing（改善・拡張）
+
+ルールはMarkdownテキストのみ。コード編集不要で誰でも改善できる。
+
+### 編集ポイント
+
+- **共通ルール・QA手順の修正**：`references/common-rules.md`
+- **プロジェクト固有ルール・用語・実装パターン**：`projects/<project>.md`（KSWなら `projects/ksw.md`）
+- **新プロジェクト追加**：上記「新プロジェクト追加手順」に従い `projects/<new>.md` を作成
+- **監査スクリプト**：`scripts/`（読み取り専用・破壊的変更不可）
+
+### 手順
+
+1. 変更内容を該当Markdownに反映。
+2. **必ず本READMEの Revision History 表へ1行追加**（日付・概要・対象プロジェクト・検証SOP）。これが変更履歴の唯一の人間可読ソース。
+3. プルリクエスト。変更が特定SOPの実翻訳で検証済みなら、そのSOP番号をSummary/Revision Historyに明記し、未検証の推測は「要検証」と記載。
+
+### 運用原則
+
+- 原文・承認図・OEM用語・HMIラベル・法定要件が最優先。翻訳メモリや過去の訳がこれらと矛盾する場合は前者を採用し、矛盾をRevision Historyか該当ファイルの「既知の参照欠陥」に記録。
+- 技術的に疑わしい英語を黙って補正しない。原文を保持し、課題として可視化。
+- 個別SOPで新たに用語・パターンを確定したら、該当 `projects/<project>.md` へ反映し、Revision Historyに行を追加。
