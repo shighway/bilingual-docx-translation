@@ -186,19 +186,21 @@ python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
 
 **部分太字の対応（SOP-903事故対応・必須）**：原文ENの操作ステップが**先頭動詞のみ太字**（`Conduct` / `Confirm` / `Refer` 等）の場合、`deepcopy` 挿入JPは太字 `runs[0]` を継承して**文全体が太字**になる。JPは対応する動詞句のみ太字にする（英語の先頭動詞＝日本語の文末動詞句：`確認する。` `参照する。` `実施する。` 等）。修正は「全文太字解除→対応動詞句のみ再太字（分割ラン、色/フォント保持）」。`audit_format.py` は**色強調のない全文太字JP段落**を違反検出する（部分太字・色付き全文太字は正当）。
 
-### フローチャート画像バイリンガル再作成（必須・SOP-501/903検証）
+### フローチャート画像バイリンガル再作成（必須・SOP-310/501/903検証）
 
-ラスター（画像）フローチャートは**元画像への日本語重ね描き（overlay）を既定**とする。`scripts/build_flowchart_bilingual.py`（easyocr + Pillow）を使用。フル再描画は元ビジュアル（色・コネクタ・グループ化）が崩れるリスクがあり最終手段のみ。手順：
+ラスター（画像）フローチャートは**元画像への日本語重ね描き（overlay）を既定**とする。`scripts/build_flowchart_bilingual.py`（easyocr + Pillow）を使用。フル再描画は元ビジュアル（色・コネクタ・グループ化）が崩れ、さらに`wp:extent`破壊の原因になるため最終手段のみ（SOP-310事故：フル再描画差し替えで画像が14.6in表示になりレイアウト崩壊。overlayなら寸法は元画像と同一のためextent不変）。手順：
 
 1. **原文画像を特定**：`document.xml`の`r:embed`出現順と`document.xml.rels`で、`Flowchart:`セル内の画像がどの`word/media/imageN.*`か決定（SOP-501/903では`image2.png`/`image2.jpeg`）。`word/media/`へ抽出。
 2. **OCR + 箱検出**：`python scripts/build_flowchart_bilingual.py --ocr SRC.png --dump labels.json`。easyocr(`Reader(['en'], gpu=False)`)が英語ラベルbbox、非白色マスク `~((r>230)&(g>230)&(b>230))` 連結成分が色箱矩形を検出。JSONの各ラベルに `"jp"` を記入（翻訳）。外部ビジョンAPI（画像分析MCP等）はローカルパス不可の場合が多く、easyocrが確実。
-3. **重ね描き＋差し替え**：`--src SRC.png --labels labels.json --docx OUT.docx --media image2.png`。`zipfile`で該当`word/media/imageN.*`を置換して再圧縮。ファイル名・パス・リレーションはそのまま。
+3. **重ね描き＋差し替え**：`--src SRC.png --labels labels.json --docx OUT.docx --media image2.png`。`zipfile`で該当`word/media/imageN.*`を置換して再圧縮。ファイル名・パス・リレーションはそのまま。**過去にフル再描画版を差し替えた履歴がありピクセル尺寸法が原文と異なる場合は、`--fix-extent CxCy_EMU --docx OUT.docx --media imageN.png` で原文表示寸法（EMU）に`wp:extent`を復元する**（SOP-310: `4144488x5035138` = 4.53in×5.51in）。
 4. **QA**：差し替え後 `audit_docx.py`（`inline_shapes`/`media_parts`/`tables`が原文と同一・`zip_integrity:True`）、`--ocr`で再読取し全ラベル英日揃い・切抜きなしを確認（目視・類推に頼らない）、Word COM再保存で修復ダイアログなしを確認。
 
-**overlay位置決めの原則（SOP-501/903事故の教訓・スクリプト実装済み）**：
-- **二重座標系**：水平は実際の色箱矩形で中心寄せ・ピル背景を箱境界でクリップ。垂直はOCR英語テキスト下端Y+4px。OCR bboxを水平中心に使うと箱からはみ出し、箱下端Yを垂直位置に使うと英日が~30px離れる。
+**overlay位置決めの原則（SOP-310/501/903事故の教訓・スクリプト実装済み）**：
+- **二重座標系**：水平は実際の色箱矩形で中心寄せ・ピル背景を箱境界でクリップ。垂直はOCR英語テキスト下端Y+3px。OCR bboxを水平中心に使うと箱からはみ出し、箱下端Yを垂直位置に使うと英日が~30px離れる。
 - **色検出の落とし穴**：`(channel>200)` のOR判定は紫`(111,47,161)`・青`(47,85,151)`・緑`(84,130,53)` 等**全チャンネル<200の飽和色を検出漏れ**する。必ず非白色マスク `~((r>230)&(g>230)&(b>230))` を使う。
-- 日本語は `Meiryo`（`C:/Windows/Fonts/meiryo.ttc`）11px、箱幅-12px超過時10→9px自動縮小。白文字＋黒4方向縁取り、ピル背景は箱内の支配的非白色をサンプリング。画像下端を超えるラベルはキャンバスを延長（幅は不変のため`wp:extent`調整は原則不要。拡張した場合は`cx`/`cy`を同率調整）。
+- 日本語は `Meiryo`（`C:/Windows/Fonts/meiryo.ttc`）10〜11px、白文字**直描き（縁取りなし）**。黒4方向縁取りは10px級Meiryoを全太字/ステンシル風に見せるため禁止（SOP-310 v2教訓）。ピル背景は箱内の支配的非白色をサンプリング。
+- **キャンバス延長禁止**：ピルが箱下端を超える場合は箱塗色を全幅でシームレスに下延長して収める（画像寸法・アスペクト比は元のまま）。白背景の分岐ダイヤモンド等はピルなしの黒文字直描き（labels JSONで `"dark": true` + `"cx"`/`"y"`）。
+- **フォント幅**：箱幅に収まらない場合は1段階(11→10px)縮小のみで、それでも収まらないらassertで落とす（無音9px縮小で判読不能になるのを防ぐ）。
 
 **フル再描画に fallback する場合のみ（SOP-309手法）**：元の縦横比・サイズを維持。`getcolors`で取得した原本の**飽和色をそのまま塗りに使う**（淡いパステルに変換しない。原文が飽和色背景＋白文字なら再作成も同じ。矢印色も原本からサンプリング、角丸半径も原本に合わせる）。
 

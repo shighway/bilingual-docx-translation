@@ -22,10 +22,12 @@ Label JSON format (list):
   [{"box": [x1, y1, x2, y2], "text_y2": 69, "jp": "地震信号受信"}, ...]
 
   box       = FULL colored-box rectangle (horizontal centering / pill clipping)
-  text_y2   = bottom Y of the English text (vertical anchor: JP top = y2+4px)
-  jp        = Japanese translation ('\n' allowed)
+  text_y2   = bottom Y of the English text (vertical anchor: JP top = y2+3px)
+  jp        = Japanese translation
+  dark      = optional true: plain black text at {cx, y}, no pill
+              (for white-bg labels like decision diamonds)
 
-Positioning rules (SOP-501/903 lessons):
+Positioning rules (SOP-310/501/903 lessons):
   - Horizontal: center on the actual colored box, clip pill to box bounds.
     NEVER center on the OCR text bbox — it is narrower than the box and the
     pill overflows the box edges.
@@ -35,12 +37,26 @@ Positioning rules (SOP-501/903 lessons):
       ~((r>230) & (g>230) & (b>230))
     NOT (channel > 200). Saturated colors (purple 111,47,161 / blue 47,85,151
     / green 84,130,53) have ALL channels < 200 and are missed otherwise.
+  - NO black 4-direction text outline. At 10-11px Meiryo the outline makes
+    every glyph look bold/stenciled (SOP-310 v2 lesson). White text directly.
+  - NO canvas extension. If the pill would pass the box bottom, extend the
+    box fill color seamlessly down (full box width) to the pill bottom
+    instead. Canvas extension changes the aspect ratio vs the source.
+  - Dark labels: white-bg areas (decision diamonds) get plain BLACK text,
+    no pill — add {"cx": x, "y": y, "jp": "...", "dark": true}.
+  - Font fit: one-step shrink (11->10px) then ASSERT. Never shrink silently
+    below that — an overflowing 9px label must fail loudly.
+  - Extent: if a previous full redraw swapped in a different pixel size,
+    document.xml wp:extent no longer matches the source display size
+    (SOP-310: image shown at 14.6in instead of 4.53in x 5.51in). After
+    media swap, verify/restore the extent (see --fix-extent).
 
 Dependencies: pip install pillow numpy easyocr  (easyocr only for --ocr)
 """
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import zipfile
@@ -151,50 +167,46 @@ def overlay(src_path, labels, out_path, font_size=11):
     img = Image.open(src_path).convert('RGBA')
     w, h = img.size
     orig_rgb = np.array(img.convert('RGB'))
-
-    line_height = font_size + 2
-    pad = 4
-    max_y = h
-    for lab in labels:
-        n_lines = lab['jp'].count('\n') + 1
-        max_y = max(max_y, lab['text_y2'] + pad + n_lines * line_height + pad)
-    extra = max(max_y - h + 5, 0)
-    new_img = Image.new('RGBA', (w, h + extra), (255, 255, 255, 255))
-    new_img.paste(img, (0, 0))
-    draw = ImageDraw.Draw(new_img)
+    draw = ImageDraw.Draw(img)
 
     for lab in labels:
-        bx1, by1, bx2, by2 = lab['box']
-        text_y2, jp = lab['text_y2'], lab['jp']
+        jp = lab.get('jp', '')
         if not jp:
             continue
+        f = get_font(font_size)
+
+        if lab.get('dark'):  # plain black text on white bg (no pill)
+            cx, ty = lab['cx'], lab['y']
+            tw = f.getbbox(jp)[2]
+            draw.text((cx - tw // 2, ty), jp, fill=(0, 0, 0, 255), font=f)
+            continue
+
+        bx1, by1, bx2, by2 = lab['box']
+        text_y2 = lab['text_y2']
         box_w = bx2 - bx1
         cx = (bx1 + bx2) // 2
         bg = get_box_color_at(orig_rgb, cx, by1 + 5)
 
-        font = get_font(font_size)
-        tw = font.getbbox(jp)[2]
-        for size in (font_size - 1, font_size - 2):  # auto-shrink to fit box
-            if tw > box_w - 12:
-                font = get_font(size)
-                tw = font.getbbox(jp)[2]
+        tw = f.getbbox(jp)[2]
+        if tw > box_w - 10:  # ONE shrink step, then fail loudly
+            f = get_font(font_size - 1)
+            tw = f.getbbox(jp)[2]
+        assert tw <= box_w - 10, f'JP too wide {tw}>{box_w - 10}: {jp}'
 
-        tx = max(cx - tw // 2, bx1 + 4)               # center on box, clip
-        if tx + tw > bx2 - 4:
-            tx = bx2 - 4 - tw
-        ty = text_y2 + pad                             # anchor: EN text bottom
+        tx = max(cx - tw // 2, bx1 + 5)
+        if tx + tw > bx2 - 5:
+            tx = bx2 - 5 - tw
+        ty = text_y2 + 3
 
-        px0 = max(tx - 3, bx1 + 2)
-        px1 = min(tx + tw + 3, bx2 - 2)
-        if px1 > px0:
-            draw.rectangle([px0, ty - 2, px1, ty + font_size + 1],
-                           fill=bg + (255,))
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):  # black outline
-            draw.text((tx + dx, ty + dy), jp, fill=(0, 0, 0, 255), font=font)
-        draw.text((tx, ty), jp, fill=(255, 255, 255, 255), font=font)
+        py0, py1 = ty - 2, ty + font_size + 1
+        if py1 > by2 - 1:  # seamless box extension, NOT canvas extension
+            draw.rectangle([bx1, by2 - 1, bx2, py1 + 1], fill=bg + (255,))
+        draw.rectangle([max(tx - 4, bx1 + 2), py0,
+                        min(tx + tw + 4, bx2 - 2), py1], fill=bg + (255,))
+        draw.text((tx, ty), jp, fill=(255, 255, 255, 255), font=f)
 
-    new_img.convert('RGB').save(out_path, 'PNG', optimize=True)
-    print(f'{out_path} ({os.path.getsize(out_path):,} bytes) {w}x{h + extra}')
+    img.convert('RGB').save(out_path, 'PNG', optimize=True)
+    print(f'{out_path} ({os.path.getsize(out_path):,} bytes) {w}x{h} (no canvas change)')
     return out_path
 
 
@@ -219,6 +231,35 @@ def replace_image_in_docx(docx_path, image_path, media_name):
         print(f'  WARNING: {target} not found in {docx_path}', file=sys.stderr)
 
 
+def restore_extent(docx_path, media_name, cx, cy):
+    """Rewrite wp:extent of inline drawings embedding media_name (SOP-310
+    lesson: a previous full-redraw swap left extent at raw-pixel 14.6in,
+    blowing the layout up). Call with the SOURCE display size in EMU."""
+    with zipfile.ZipFile(docx_path, 'r') as z:
+        data = {n: z.read(n) for n in z.namelist()}
+    rels = data['word/_rels/document.xml.rels'].decode('utf8')
+    m = re.search(
+        rf'Target="media/{re.escape(media_name)}"[^>]*Id="(rId\d+)"'
+        rf'|Id="(rId\d+)"[^>]*Target="media/{re.escape(media_name)}"', rels)
+    rid = m.group(1) or m.group(2)
+    doc = data['word/document.xml'].decode('utf8')
+    parts = re.split(r'(<w:drawing>.*?</w:drawing>)', doc, flags=re.S)
+    n = 0
+    for i, p in enumerate(parts):
+        if p.startswith('<w:drawing>') and f'r:embed="{rid}"' in p:
+            parts[i] = re.sub(r'(<wp:extent cx=")\d+(" cy=")\d+("/>)',
+                              rf'\g<1>{cx}\g<2>{cy}\g<3>', p)
+            n += 1
+    assert n >= 1, f'no drawing embedding {media_name} found'
+    data['word/document.xml'] = ''.join(parts).encode('utf8')
+    tmp = docx_path + '.tmp'
+    with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
+        for name, d in data.items():
+            zout.writestr(name, d)
+    os.replace(tmp, docx_path)
+    print(f'  extent restored to {cx}x{cy} EMU in {n} drawing(s)')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument('--ocr', metavar='SRC.png', help='dump boxes+EN labels JSON')
@@ -229,7 +270,16 @@ def main():
     ap.add_argument('--docx', help='bilingual docx to swap image into')
     ap.add_argument('--media', help='word/media filename, e.g. image2.png')
     ap.add_argument('--font-size', type=int, default=11)
+    ap.add_argument('--fix-extent', metavar='CXxCY_EMU',
+                    help='restore wp:extent (EMU) of drawings embedding --media')
     args = ap.parse_args()
+
+    if args.fix_extent:
+        if not (args.docx and args.media):
+            ap.error('--fix-extent requires --docx and --media')
+        cx, cy = args.fix_extent.split('x')
+        restore_extent(args.docx, args.media, cx, cy)
+        return
 
     if args.ocr:
         ocr_dump(args.ocr, args.dump)
