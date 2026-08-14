@@ -182,6 +182,8 @@ python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
 
 `audit_format.py` が FAIL なら納品不可。`w:sz` は半ポイント（`val=18`→9pt、`val=22`→11pt）。`val>36` は機械的に異常扱い。本文は9pt（`val=18`）。
 
+**部分色強調の継承（SOP-309事故対応・必須）**：原文ENに部分着色（赤のSOP参照 `EE0000`、緑のHMIパス `ECMS > Alarms` 等）がある場合、`deepcopy` 挿入JPは `runs[0]` の色しか継承せず色強調が落ちる。正規化後に `scripts/inherit_color_emphasis.py FILE.docx` を実行し、EN着色リテラル（SOP参照・HMIパス等の原文まま文字列）をJP内で同色（＋太字）に分割着色する。実行後は `audit_format.py`（色付き太字ランは正当な強調として許可）で再検証。
+
 ### フローチャート画像バイリンガル再作成（必須・SOP-309検証）
 
 ラスター（画像）フローチャートは、画像内の全意味ラベルを英日で再描画し、同じパスの画像を差し替える。手順：

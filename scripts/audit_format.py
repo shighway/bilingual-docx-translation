@@ -51,6 +51,18 @@ def run_bold(r):
     return b is not None and b.get(qn('val'), '1') != '0'
 
 
+def run_color(r):
+    """Non-default text color, if any (emphasis inherited from the EN source)."""
+    rpr = r.find(qn('rPr'))
+    if rpr is None:
+        return None
+    c = rpr.find(qn('color'))
+    if c is None:
+        return None
+    v = c.get(qn('val'))
+    return v.upper() if v and v.lower() not in ('auto', '000000') else None
+
+
 def run_size(r):
     rpr = r.find(qn('rPr'))
     if rpr is None:
@@ -88,7 +100,9 @@ def audit(path, font, max_size):
                 violations.append(f"p{pi} FONT eastAsia={ea!r} expected {font!r}: {t[:30]!r}")
             if run_size(r) is not None and run_size(r) > max_size:
                 violations.append(f"p{pi} SIZE sz={run_size(r)} > {max_size}: {t[:30]!r}")
-            if run_bold(r) and not is_heading:
+            if run_bold(r) and not is_heading and not run_color(r):
+                # bold on a colored run is deliberate emphasis matching the
+                # EN source (e.g. red SOP cross-reference) — allowed.
                 violations.append(f"p{pi} BOLD body run is bold: {t[:30]!r}")
     name = path.replace('\\', '/').split('/')[-1]
     print(f"{name}: checked {checked} JP runs, {len(violations)} violation(s)")

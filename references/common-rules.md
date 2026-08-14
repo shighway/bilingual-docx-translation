@@ -126,6 +126,10 @@ python scripts/normalize_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --body-
 # 書式QAゲート（違反1件でも exit 1 = 納品不可）
 # フォント統一・本文太字・破損サイズを検出
 python scripts/audit_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --max-size 36]
+
+# 部分色強調の継承（原文ENに部分着色がある場合・必須）
+# EN着色リテラル（SOP参照・HMIパス等）をJP訳内で同色+太字に分割着色
+python scripts/inherit_color_emphasis.py OUTPUT_JP_EN.docx
 ```
 
 依存：`python-docx`、`lxml`。
@@ -134,4 +138,4 @@ python scripts/audit_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --max-size 
 pip install python-docx lxml
 ```
 
-**書式ゲートは省略不可**：`deepcopy` ベースの挿入は元ランのフォント/太字/サイズを無条件継承するため、正規化なしだと宋体/メイリオ/Calibri混入・本文太字・110pt(`sz=220`)級の破綻が必ず混入する（SOP-308/309/310事故）。`normalize_format.py` → `audit_format.py` PASS を毎回確認する。`--font` はプロジェクト別（KSW=Meiryo UI、KIX1は別途）に指定。
+**書式ゲートは省略不可**：`deepcopy` ベースの挿入は元ランのフォント/太字/サイズを無条件継承するため、正規化なしだと宋体/メイリオ/Calibri混入・本文太字・110pt(`sz=220`)級の破綻が必ず混入する（SOP-308/309/310事故）。`normalize_format.py` → `inherit_color_emphasis.py`（部分着色がある場合）→ `audit_format.py` PASS を毎回確認する。`--font` はプロジェクト別（KSW=Meiryo UI、KIX1は別途）に指定。
