@@ -23,7 +23,10 @@ bilingual-docx-translation/
 │   └── stack.md                   STACK固有（原文待ちプレースホルダ）
 ├── scripts/
 │   ├── audit_docx.py              読み取り専用 構造監査
-│   └── audit_equipment_lists.py   読み取り専用 機器リスト照合
+│   ├── audit_equipment_lists.py   読み取り専用 機器リスト照合
+│   ├── normalize_format.py        書式正規化（フォント統一・本文非太字・破損サイズ修正）
+│   ├── audit_format.py            書式QAゲート（フォント/太字/サイズ違反でexit 1）
+│   └── inherit_color_emphasis.py  部分色強調のEN→JP継承
 └── agents/
     └── openai.yaml                エージェントインターフェース定義
 ```
@@ -64,6 +67,16 @@ python scripts/audit_equipment_lists.py SOURCE.docx BILINGUAL.docx
 
 target-equipment selectionセル（`Circle`/`Mark`/`Tick the target equipment`）を原文と出力で照合。不一致は exit 1（必須FAIL）。該当ステップがない場合は not-applicable で exit 0。
 
+### 書式正規化＋書式QAゲート（ビルド後必須）
+
+```bash
+python scripts/normalize_format.py OUTPUT_JP_EN.docx        # フォント統一・本文非太字・破損サイズ修正（べき等）
+python scripts/inherit_color_emphasis.py OUTPUT_JP_EN.docx  # EN部分着色（SOP参照/HMIパス）をJPに継承
+python scripts/audit_format.py OUTPUT_JP_EN.docx            # 違反で exit 1（全文太字・フォント混在・sz>36を検出）
+```
+
+`deepcopy` 挿入は元英語ランの書式を無条件継承するため、正規化なしではフォント混在（宋体/メイリオ/Calibri）・本文太字・110pt(`sz=220`)級の破綻が必ず混入する。`audit_format.py` PASS を納品条件とする（詳細は `references/common-rules.md` §7）。
+
 ## 新プロジェクト追加手順
 
 1. 原文DOCXとテンプレート参照を入手。
@@ -90,16 +103,6 @@ target-equipment selectionセル（`Circle`/`Mark`/`Tick the target equipment`�
 
 本スキルは両者の共通要素を抽象化した汎用基盤。固有要素の完全版は各運用元スキルを参照。
 
-## Revision History
-
-新しい順。変更を加えたら末尾の行を追加すること（日付・概要・対象プロジェクト・検証SOPが分かれば明記）。
-
-| Date | Summary | Project | Verified SOP |
-|---|---|---|---|
-| 2026-08-13 | フローチャート画像のバイリンガル再作成を必須化（SOP-306の英語のみを既知欠陥に記録）・PIL再作成パターン（色抽出→同サイズ再描画→画像差替）を追加 | KSW | SOP-309 Fire Pump Testing |
-| 2026-08-13 | KSW `03→04`ワンパスワークフローと文書保持XML挿入パターン（別段落クローン・見出し` / 日`インライン・`\n`→`w:br`・保護データ・QA 3ゲート）を追加 | KSW | SOP-309 Fire Pump Testing |
-| 2026-08-13 | 初版：プロジェクト別フォーマット管理スキル（KIX1/KSW/STACK共通基盤・読み取り専用QAスクリプト） | 共通 | — |
-
 ## Contributing（改善・拡張）
 
 ルールはMarkdownテキストのみ。コード編集不要で誰でも改善できる。
@@ -114,11 +117,10 @@ target-equipment selectionセル（`Circle`/`Mark`/`Tick the target equipment`�
 ### 手順
 
 1. 変更内容を該当Markdownに反映。
-2. **必ず本READMEの Revision History 表へ1行追加**（日付・概要・対象プロジェクト・検証SOP）。これが変更履歴の唯一の人間可読ソース。
-3. プルリクエスト。変更が特定SOPの実翻訳で検証済みなら、そのSOP番号をSummary/Revision Historyに明記し、未検証の推測は「要検証」と記載。
+2. プルリクエスト。変更が特定SOPの実翻訳で検証済みなら、そのSOP番号をSummaryに明記し、未検証の推測は「要検証」と記載。変更履歴はgitコミットログで管理する。
 
 ### 運用原則
 
-- 原文・承認図・OEM用語・HMIラベル・法定要件が最優先。翻訳メモリや過去の訳がこれらと矛盾する場合は前者を採用し、矛盾をRevision Historyか該当ファイルの「既知の参照欠陥」に記録。
+- 原文・承認図・OEM用語・HMIラベル・法定要件が最優先。翻訳メモリや過去の訳がこれらと矛盾する場合は前者を採用し、矛盾を該当ファイルの「既知の参照欠陥」に記録。
 - 技術的に疑わしい英語を黙って補正しない。原文を保持し、課題として可視化。
-- 個別SOPで新たに用語・パターンを確定したら、該当 `projects/<project>.md` へ反映し、Revision Historyに行を追加。
+- 個別SOPで新たに用語・パターンを確定したら、該当 `projects/<project>.md` へ反映。

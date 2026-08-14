@@ -100,10 +100,16 @@ def audit(path, font, max_size):
                 violations.append(f"p{pi} FONT eastAsia={ea!r} expected {font!r}: {t[:30]!r}")
             if run_size(r) is not None and run_size(r) > max_size:
                 violations.append(f"p{pi} SIZE sz={run_size(r)} > {max_size}: {t[:30]!r}")
-            if run_bold(r) and not is_heading and not run_color(r):
-                # bold on a colored run is deliberate emphasis matching the
-                # EN source (e.g. red SOP cross-reference) — allowed.
-                violations.append(f"p{pi} BOLD body run is bold: {t[:30]!r}")
+        # BOLD: partial bold in a body paragraph is deliberate emphasis
+        # matching the EN source (leading verb / colored segment). The defect
+        # class is a paragraph whose runs are ENTIRELY bold with no color
+        # emphasis (deepcopy of a partially-bold EN source) — flag only that.
+        # Entirely bold + colored (e.g. red ⚠ warning inherited from EN) is fine.
+        if not is_heading:
+            vis = [r for r in p.findall(qn('r')) if run_text(r).strip() and has_cjk(run_text(r))]
+            if vis and all(run_bold(r) for r in vis) and not any(run_color(r) for r in vis):
+                t = ''.join(run_text(r) for r in vis)
+                violations.append(f"p{pi} BOLD entire JP paragraph bold, no color emphasis: {t[:30]!r}")
     name = path.replace('\\', '/').split('/')[-1]
     print(f"{name}: checked {checked} JP runs, {len(violations)} violation(s)")
     for v in violations[:25]:

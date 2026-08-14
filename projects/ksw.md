@@ -184,6 +184,8 @@ python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
 
 **部分色強調の継承（SOP-309事故対応・必須）**：原文ENに部分着色（赤のSOP参照 `EE0000`、緑のHMIパス `ECMS > Alarms` 等）がある場合、`deepcopy` 挿入JPは `runs[0]` の色しか継承せず色強調が落ちる。正規化後に `scripts/inherit_color_emphasis.py FILE.docx` を実行し、EN着色リテラル（SOP参照・HMIパス等の原文まま文字列）をJP内で同色（＋太字）に分割着色する。実行後は `audit_format.py`（色付き太字ランは正当な強調として許可）で再検証。
 
+**部分太字の対応（SOP-903事故対応・必須）**：原文ENの操作ステップが**先頭動詞のみ太字**（`Conduct` / `Confirm` / `Refer` 等）の場合、`deepcopy` 挿入JPは太字 `runs[0]` を継承して**文全体が太字**になる。JPは対応する動詞句のみ太字にする（英語の先頭動詞＝日本語の文末動詞句：`確認する。` `参照する。` `実施する。` 等）。修正は「全文太字解除→対応動詞句のみ再太字（分割ラン、色/フォント保持）」。`audit_format.py` は**色強調のない全文太字JP段落**を違反検出する（部分太字・色付き全文太字は正当）。
+
 ### フローチャート画像バイリンガル再作成（必須・SOP-501/903検証）
 
 ラスター（画像）フローチャートは**元画像への日本語重ね描き（overlay）を既定**とする。`scripts/build_flowchart_bilingual.py`（easyocr + Pillow）を使用。フル再描画は元ビジュアル（色・コネクタ・グループ化）が崩れるリスクがあり最終手段のみ。手順：
