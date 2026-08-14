@@ -174,7 +174,7 @@ KSW核心用語の抜粋（完全版は同僚スキル `references/ksw-translati
 挿入日本語ランは元英語ランの `rPr` を `deepcopy` で継承するため、フォント（宋体/メイリオ/Calibri混入）・太字（本文なのに太字）・サイズ（`w:sz val=220` = 110pt 等）が元ラン任せで破綻する。**全挿入完了後、納品前に必ず以下を実行**（べき等・再実行安全）：
 
 ```bash
-# 本文フォントMeiryo UI・本文非太字・見出し（" / "区切り）太字維持・破損サイズ修正
+# 本文フォントMeiryo UI・本文非太字・本文非下線・見出し（" / "区切り）太字維持・破損サイズ修正
 python scripts/normalize_format.py "04 Bilingual Procedure/KSW-SOP-XXX.docx"
 # 違反1件でもFAIL（exit 1）。0違反で合格
 python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
@@ -185,6 +185,10 @@ python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
 **部分色強調の継承（SOP-309事故対応・必須）**：原文ENに部分着色（赤のSOP参照 `EE0000`、緑のHMIパス `ECMS > Alarms` 等）がある場合、`deepcopy` 挿入JPは `runs[0]` の色しか継承せず色強調が落ちる。正規化後に `scripts/inherit_color_emphasis.py FILE.docx` を実行し、EN着色リテラル（SOP参照・HMIパス等の原文まま文字列）をJP内で同色（＋太字）に分割着色する。実行後は `audit_format.py`（色付き太字ランは正当な強調として許可）で再検証。
 
 **部分太字の対応（SOP-903事故対応・必須）**：原文ENの操作ステップが**先頭動詞のみ太字**（`Conduct` / `Confirm` / `Refer` 等）の場合、`deepcopy` 挿入JPは太字 `runs[0]` を継承して**文全体が太字**になる。JPは対応する動詞句のみ太字にする（英語の先頭動詞＝日本語の文末動詞句：`確認する。` `参照する。` `実施する。` 等）。修正は「全文太字解除→対応動詞句のみ再太字（分割ラン、色/フォント保持）」。`audit_format.py` は**色強調のない全文太字JP段落**を違反検出する（部分太字・色付き全文太字は正当）。
+
+**下線の継承防止（SOP-501事故対応・`normalize_format.py`が自動解除）**：下線付きENラン（`Fuel Type – Fuel Oil A (A重油)` 等のラベル）を `deepcopy` すると**JP行全体に下線 `w:u` が継承**される。下線は見出し以外に意図されないため、本文JPランの `w:u` は正規化で解除、`audit_format.py` が全文下線JP段落をFAIL検出する（下線バイリンガル見出し自体は例外的に維持）。
+
+**文書末尾の空段落押し出し（SOP-501事故対応）**：文書末尾の表（バックアウト表・サインオフ表）へJP行を追加すると、本文書末尾の**空段落が新ページへ押し出され**最終ページが空白化する。最終表に行を追加したら、末尾の空段落を1pt・行高固定に縮小して元のページ数を維持する（Word COMで最終ページ・保存確認）。
 
 ### フローチャート画像バイリンガル再作成（必須・SOP-310/501/903検証）
 

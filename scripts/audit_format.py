@@ -7,6 +7,8 @@ AFTER normalize_format.py (or as a pre-delivery gate).
 Checks (on every run whose text contains CJK):
   FONT  genuine JP runs use the expected body font (default "Meiryo UI").
   BOLD  body translation runs are NON-bold; only " / " heading runs may be bold.
+  UNDER body JP paragraphs are not entirely underlined (deepcopy of an
+        underlined EN label run inherits w:u to the whole JP line — SOP-501).
   SIZE  no JP run has w:sz > --max-size (default 36 half-points = 18pt; catches
         the 110pt / sz=220 class of defect).
 
@@ -63,6 +65,14 @@ def run_color(r):
     return v.upper() if v and v.lower() not in ('auto', '000000') else None
 
 
+def run_underline(r):
+    rpr = r.find(qn('rPr'))
+    if rpr is None:
+        return False
+    u = rpr.find(qn('u'))
+    return u is not None and u.get(qn('val'), 'single') != 'none'
+
+
 def run_size(r):
     rpr = r.find(qn('rPr'))
     if rpr is None:
@@ -110,6 +120,13 @@ def audit(path, font, max_size):
             if vis and all(run_bold(r) for r in vis) and not any(run_color(r) for r in vis):
                 t = ''.join(run_text(r) for r in vis)
                 violations.append(f"p{pi} BOLD entire JP paragraph bold, no color emphasis: {t[:30]!r}")
+            # UNDERLINE: entire-paragraph underline = deepcopy signature from an
+            # underlined EN label run (e.g. 'Fuel Type – Fuel Oil A'). Same
+            # conservative pattern as BOLD: flag only when ALL visible JP runs
+            # are underlined.
+            if vis and all(run_underline(r) for r in vis):
+                t = ''.join(run_text(r) for r in vis)
+                violations.append(f"p{pi} UNDERLINE entire JP paragraph underlined: {t[:30]!r}")
     name = path.replace('\\', '/').split('/')[-1]
     print(f"{name}: checked {checked} JP runs, {len(violations)} violation(s)")
     for v in violations[:25]:

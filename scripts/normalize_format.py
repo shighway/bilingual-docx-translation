@@ -13,7 +13,9 @@ Rules applied to every run whose text contains CJK:
                 EN+JP run is split so the JP portion gets the body font while
                 the EN portion keeps its original face. Heading bold/size kept.
   * Body     -> translation text (run has hiragana, or CJK dominates the run,
-                or sits in a JP-dominant paragraph). Forced NON-bold; size set
+                or sits in a JP-dominant paragraph). Forced NON-bold and
+                NON-underlined (deepcopy of an underlined EN label run
+                inherits w:u to the whole JP line — SOP-501); size set
                 to body half-points (default 18 = 9pt) when missing or absurd
                 (> 36 half-points).
   * Mixed EN+CJK run inside an English paragraph (e.g. 'Start「非常起動」button'):
@@ -99,6 +101,15 @@ def run_text(r):
     return ''.join((t.text or '') for t in r.findall(qn('t')))
 
 
+def strip_underline(rpr):
+    """Body JP runs must not inherit w:u from underlined EN label runs."""
+    u = rpr.find(qn('u'))
+    if u is None or u.get(qn('val'), 'single') == 'none':
+        return False
+    u.set(qn('val'), 'none')
+    return True
+
+
 def split_mixed_heading(r, font):
     """Split a 'EN... / JP...' run into EN run (original face) + JP run (body font).
     Returns True if split happened."""
@@ -131,7 +142,7 @@ def normalize(path, font, body_size):
         xml = z.read('word/document.xml')
     root = etree.fromstring(xml)
     body = root.find(f'.//{W_}body')
-    stats = dict(font=0, bold_off=0, size_fix=0, split=0)
+    stats = dict(font=0, bold_off=0, u_off=0, size_fix=0, split=0)
 
     for p in body.findall(f'.//{W_}p'):
         full = ''.join(run_text(r) for r in p.findall(qn('r')))
@@ -157,6 +168,8 @@ def normalize(path, font, body_size):
                 if is_bold(r):
                     set_bold(rpr, False)
                     stats['bold_off'] += 1
+                if strip_underline(rpr):
+                    stats['u_off'] += 1
                 if get_size(rpr) is None or (get_size(rpr) or 0) > 36:
                     set_size(rpr, body_size)
                     stats['size_fix'] += 1
@@ -177,7 +190,8 @@ def normalize(path, font, body_size):
             zout.writestr(item, out if item.filename == 'word/document.xml' else zin.read(item.filename))
     shutil.move(tmp, path)
     print(f"  {path.split(chr(92))[-1] if chr(92) in path else path.split('/')[-1]}: "
-          f"font={stats['font']} bold_off={stats['bold_off']} size_fix={stats['size_fix']} split={stats['split']}")
+          f"font={stats['font']} bold_off={stats['bold_off']} u_off={stats['u_off']} "
+          f"size_fix={stats['size_fix']} split={stats['split']}")
 
 
 def main():

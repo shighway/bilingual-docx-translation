@@ -25,6 +25,8 @@ Wordが「読み取れない内容」を報告して修復/再保存した場合
 - Wordが書き直した `document.xml`/`numbering.xml`/設定/ヘッダ/フッタ/カスタムXML/関連パーツを保持。局所編集のみ適用。
 - 未修復ファイルから `document.xml` 等を戻さない。
 
+**document.xmlの直接編集（事故防止・共通）**：`document.xml` を正規表現の文字列置換で直接編集しない（SOP-501事故: 編集ミスでXML破損）。XML編集は **lxml等のパーサ経由**を原則とし、やむを得ず文字列編集する場合も**編集前に必ずdocxのバックアップを取得**してから行う。破損時にユーザー編集済み内容を失わないため、作業開始時点のユーザー編集版バックアップ（`.bak_user_edit.docx` 等）を常に残す。
+
 ## 3. リファレンス階層（参照が矛盾する場合）
 
 1. 検証済み機器ラベル・承認図・OEM用語・法定/安全要件。
@@ -121,12 +123,12 @@ python scripts/audit_equipment_lists.py SOURCE.docx OUTPUT_JP_EN.docx
 # exit 0 = 完全一致、exit 1 = 不一致（必須FAIL）
 
 # 書式正規化（全挿入完了後・納品前に必須・べき等）
-# 挿入JPランのフォントをプロジェクト本文フォントに統一、本文=非太字、
+# 挿入JPランのフォントをプロジェクト本文フォントに統一、本文=非太字・非下線、
 # 見出し(" / "区切り)=太字、破損サイズ(w:sz>36)を本文サイズに修正
 python scripts/normalize_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --body-size 18]
 
 # 書式QAゲート（違反1件でも exit 1 = 納品不可）
-# フォント統一・本文太字・破損サイズを検出
+# フォント統一・本文太字・全文下線・破損サイズを検出
 python scripts/audit_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --max-size 36]
 
 # 部分色強調の継承（原文ENに部分着色がある場合・必須）
