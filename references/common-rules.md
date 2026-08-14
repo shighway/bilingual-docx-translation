@@ -11,6 +11,8 @@
 - 表・結合セル・ナンバリング・チェックボックス・スタイル・ヘッダ/フッタ・ブックマーク・リレーションシップ・画像・図・埋込オブジェクトを保持。
 - ネイティブSmartArt：同じシェイプ内の英語の下に別段落として日本語を追加。
 - ラスターフローチャート/図：元の寸法・色・形状・コネクタ・順序・グループ化・機器タグを保持したバイリンガル置換を作成。英語先行、日本語はその直下。
+- ラスターのバイリンガル化は**元画像への重ね描き（overlay）を既定**とする（`scripts/build_flowchart_bilingual.py`、easyocr + Pillow、SOP-501/903検証）。フル再描画は色崩れ・レイアウト崩れリスクのある最終手段。手順：easyocr(`Reader(['en'], gpu=False)`)で英語ラベルbbox抽出 → 非白色マスク `~((r>230)&(g>230)&(b>230))` の連結成分で色箱矩形検出 → 各箱の英語直下に日本語を重ねる → `zipfile`で`word/media/imageN.*`を差し替え（ファイル名・rels不変）。
+- overlay位置決めの二重座標系（SOP-501/903事故の教訓）：水平は**実際の色箱矩形**で中心寄せ・ピル背景を箱境界でクリップ（OCRテキストbboxは箱より狭く、中心に使うとはみ出す）。垂直は**OCR英語テキスト下端Y+4px**（箱下端Yはテキストから~30px下で英日が離れる）。箱色検出に `(channel>200)` を使わない（紫(111,47,161)・青(47,85,151)・緑(84,130,53)は全チャンネル<200で検出漏れ）。日本語はMeiryo 11px、箱幅-12px超過時10→9px自動縮小、白文字+黒4方向縁取り、画像下端超過時キャンバス延長。
 - コネクタは管理対象。再作成後に各コネクタを計数・視点検。線形ブロックは中心線を共有し隣接ブロック間に1本の直線。装飾的エルボ・重複セグメント・最終ブロックに続入/貫通する線を追加しない（原文にある場合を除く）。
 - 変換後、メディア・図・インラインシェイプ・表・関連パッケージパーツの数を原文/出力で比較。DOCX ZIP整合性をテスト。
 
@@ -130,12 +132,19 @@ python scripts/audit_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --max-size 
 # 部分色強調の継承（原文ENに部分着色がある場合・必須）
 # EN着色リテラル（SOP参照・HMIパス等）をJP訳内で同色+太字に分割着色
 python scripts/inherit_color_emphasis.py OUTPUT_JP_EN.docx
+
+# ラスターフローチャートのバイリンガル化（overlay方式・2ステップ）
+# 1) OCR支援: 色箱矩形+英語ラベルbboxのJSONダンプ → "jp"を記入
+python scripts/build_flowchart_bilingual.py --ocr SRC.png --dump labels.json
+# 2) 重ね描き+DOCX差し替え（--mediaはword/media/imageN.*のファイル名）
+python scripts/build_flowchart_bilingual.py --src SRC.png --labels labels.json \
+    --docx OUTPUT_JP_EN.docx --media image2.png
 ```
 
-依存：`python-docx`、`lxml`。
+依存：`python-docx`、`lxml`、`Pillow`、`numpy`（OCR支援のみ`easyocr`）。
 
 ```bash
-pip install python-docx lxml
+pip install python-docx lxml pillow numpy easyocr
 ```
 
 **書式ゲートは省略不可**：`deepcopy` ベースの挿入は元ランのフォント/太字/サイズを無条件継承するため、正規化なしだと宋体/メイリオ/Calibri混入・本文太字・110pt(`sz=220`)級の破綻が必ず混入する（SOP-308/309/310事故）。`normalize_format.py` → `inherit_color_emphasis.py`（部分着色がある場合）→ `audit_format.py` PASS を毎回確認する。`--font` はプロジェクト別（KSW=Meiryo UI、KIX1は別途）に指定。
