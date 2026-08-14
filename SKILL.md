@@ -5,120 +5,64 @@ description: データセンターEOP/SOPのWord文書を、プロジェクト�
 
 # Bilingual DOCX Translation (Project-aware)
 
-データセンターEOP/SOPのWord文書を英語原文保持のままバイリンガル化。**プロジェクトごとに文書フォーマットと翻訳ルールが異なる**ため、プロジェクト別ルールファイルで厳密管理。このスキルは共通基盤のみを定義し、固有ルールは各プロジェクトファイルへ分離。
+Convert data-center EOP/SOP Word documents to bilingual (EN → EN+JP) by editing docx XML in place. Formatting, figures, SmartArt, headers/footers preserved. **Formats and translation rules differ per project** — project-specific rules live in separate files; this skill defines only the common base.
 
-## 必須リファレンス（編集前にすべて読む）
+## Project identification
 
-1. `references/common-rules.md` — 全プロジェクト共通の運用ルール・QA手順。
-2. `projects/<project>.md` — 対象プロジェクトの固有フォーマット・翻訳ルール・用語集。**該当ファイルを必ず読んでから翻訳開始**。
-3. 利用可能なdocxスキルのrender-and-verifyワークフローに従う。
+Judge from filename/content; ask the user only if undeterminable.
 
-## プロジェクト識別
-
-ファイル名・文書内容から対象プロジェクトを判定。判定不能時はユーザーへ確認。
-
-| プロジェクト | 判定目安 | 固有ルールファイル | 詳細スキル |
+| Project | Signal | Rules file | Notes |
 |---|---|---|---|
-| KIX1 | `KIX1 *.docx`、VDCテンプレ（BLDG-EOP/FIRE-EOP/MVAC-EOP/VDC-KIX1-EOP） | `projects/kix1.md` | `eop-translation`（実績あり） |
-| KSW | `KSW-*.docx`、SOPテンプレ | `projects/ksw.md` | 同僚のKSWスキル |
-| STACK | STACKプロジェクト文書 | `projects/stack.md`（原文待ち） | 未整備 |
+| KIX1 | `KIX1 *.docx`, VDC template (BLDG-EOP/FIRE-EOP/MVAC-EOP/VDC-KIX1-EOP) | `projects/kix1.md` | `eop-translation` skill has tooling/track record |
+| KSW | `KSW-*.docx`, SOP template | `projects/ksw.md` | |
+| STACK | STACK documents | `projects/stack.md` | awaiting source |
 
-## 共通ワークフロー
+## Reference loading (conditional — load per phase, not all upfront)
 
-### 1. ソースと出力の確立
-- 原文DOCXと最新の承認済みバイリンガル参照を同じフォルダに配置。
-- コピーから作業。原文は変更・削除しない。
-- レビュー後の更新は、原文ではなく**最新のユーザー編集済みバイリンガルファイル**をベースにパッチ。承認済み英語修正・段落順・フォーマット判断を保持。原文や旧ビルダーから再生成しない（承認内容が消える）。
-- Wordが「読み取れない内容」と報告して修復・再保存した場合、**修復後ファイルを新ベースライン**とする。`document.xml`/`numbering.xml`/設定/ヘッダ/フッタ等を未修復ファイルから戻さない。修復ファイルから次リビジョンを作成し局所編集のみ行う。
-- 現行バイリンガルファイルは1本に維持。レビューコメント反映後はプレビストキャッシュ撃退や更新識別のため`REV#`付与が必要な場合以外は上書き。
-- 曖昧・技術的に疑わしい英語を黙って修正しない。保持して課題報告。
+| File | Load when |
+|---|---|
+| `projects/<project>.md` | Always, before translating |
+| `references/translation-rules.md` | Translation phase (preservation, bilingual layout, client-name neutralization) |
+| `references/editing-rules.md` | Before XML insertion; whenever Word reports unreadable content |
+| `references/qa-gates.md` | QA phase (checklists + script gates) |
+| `references/flowchart-overlay.md` | Only when the SOP has a raster flowchart image |
+| `references/incident-log.md` | Reference only (cited from other files) |
 
-### 2. 翻訳前インベントリ
-- セクション順、表数、結合セル、行列構造、インライン/フローティングシェイプ、メディア、図、ヘッダ/フッタ、ブックマーク、埋込オブジェクトを記録。
-- 英語維持セクション（管理・事前実行系：プロジェクト別ルールで指定）を特定。
-- SOP名・Activity Description・操作ステップ・Part見出し・フローチャート・バックアウト手順・サインオフ見出し・写真・ネスト表・色付きテキスト・下線付き内部見出しを特定。
-- 固定のLocation/Equipment値、翻訳不可のリテラルラベルを特定。
-- target-equipment selectionステップ（`Circle`/`Mark`/`Tick the target equipment`）がある場合、見出し・チェックボックス・機器名・タグを**当該SOP原文から直接**インベントリ。過去SOPや翻訳参照から取得しない。
-- Field Comments、notes、expected outcomes、サイドリスト、図キャプション、フローチャート箱外ラベルなど翻訳対象列の内容をインベントリ。
+Also follow the docx skill's render-and-verify workflow where available.
 
-### 3. 日本語への翻訳
-- すべてのアクション・条件・タグ・状態・限界・タイミング値・単位・警告・責任者・許容基準を保持。
-- プロジェクト別の自然な制御日本語・確立専門用語を使用。英語語順・辞書的直訳を避ける。
-- 機器タグ・ドキュメントID・システム略語・パス・HMI/盤ラベル・部屋名・機器名は不変。
-- target-equipmentリストは当該SOP原文セルから1つの保護構造としてコピー。日本語訳の指示のみ挿入。見出し・チェックボックス・機器名・タグ・順序・フォーマットは保持。
-- クライアント名の中和：クライアント組織を示す企業名は削除。残余文が完全・自然な場合は単純削除を優先（例：`Microsoft Datacenter Work Rules and Regulations` → `Datacenter Work Rules and Regulations`）。文に組織・責任者・承認者・文法主語が必要な場合のみ `Client`/`クライアント` を使用。無関係ソフト・OEM製品・請負業者・他社名は変更しない。役割が曖昧ならレビューに回す。
-- 制御手順体の丁寧でない終止形（`〜する。`、`〜ことを確認する。`）。
-- 安全・切替権限・LOTO・化学物質取扱・法定タイトル・不明技術状態はレビュー必須扱い。
+## Workflow
 
-### 4. バイリンガル挿入（DOCX再構築なし）
-- 英語原文を厳密保持し、日本語を局所挿入。
-- プロジェクト別の除外ルールをすべて適用（`projects/<project>.md`参照）。
-- ドキュメント生成フラグ（`[Insert PME Screenshot ...]` 等）は英語維持。スクリーンショット取得/記録する本体操作指示は翻訳。
-- スクリーンショット挿入フラグは完全英語指示＋日本語訳の後に配置。
-- 通常バイリンガルセルでは英語→日本語。
-- 1ステップ内では完全な英語グループ（経路・オプション・タグ・盤・機器行含む）をまとめてから、対応する完全な日本語グループ。後続英語経路/タグ行の前に日本語を挟まない。
-- 下線付き内部見出しは `English / 日本語` を同一段落に配置、原文フォーマットに一致。
-- 多分岐ステップは各見出し→英語アクション→日本語アクションを次分岐前にまとめる。条件は通常、日本語アクション接頭辞として反復しない（真の曖昧性回避や確定参照の場合を除く）。
-- ステップを原文サブ見出しでセグメント化。元の下線サブ見出しをその場で `English / 日本語` に置換。複製見出しを追加しない。各見出し下にそのサブ見出しの完全英語→完全日本語、次へ。
-- ビジュアル付きステップ：英語ブロック→日本語ブロック→表/写真。表・写真は元セル内に保持、元の相対順序を維持。
-- ラスターフローチャートは寸法・色・形状・コネクタ・順序・グループ化・タグを保持しつつバイリンガル再作成。意味ラベル全て（分岐キャプション・経路ラベル・注釈・箱外テキスト含む）を翻訳。日本語は対応英語の直下。ネイティブSmartArtはその場で編集。
-- Field Comments等の内容-bearingサイドセルを翻訳。チェックボックス・箇条書き・下線見出し・色・整列・英語先行/日本語後行の順序を保持。Operation列だけがバイリンガル領域と仮定しない。
-- 原文の整列・インデント・サイズ・強調・テキスト色を保持。通常操作は明示的中心付けがない限り左揃え。
-- 各分岐で完全な該当HMI/アプリケーションパスを反復。`同画面にて` 等の曖昧置換を避ける。
-- 更新はべき等。既存日本語を複製しない。
+1. **Source & output** — work on a copy; never modify the source. For revisions, patch the latest user-edited bilingual file (see `references/editing-rules.md`). If Word repaired a file, the repaired file is the new baseline. Keep one current bilingual file. Never silently fix dubious English — keep and report.
+2. **Pre-translation inventory** — record section order, tables, merged cells, row/column structure, inline/floating shapes, media, figures, headers/footers, bookmarks, embedded objects. Identify: English-maintained sections (per project file); SOP names, Activity Descriptions, operation steps, Part headings, flowcharts, backout procedures, sign-off headings, photos, nested tables, colored text, underlined internal headings; fixed Location/Equipment values and untranslatable literal labels; target-equipment selection steps (`Circle`/`Mark`/`Tick the target equipment` — inventory headings/checkboxes/equipment/tags **from this SOP's own source**, never from past SOPs or translations); Field Comments, notes, expected outcomes, side lists, figure captions, flowchart outside-box labels.
+3. **Translate** — per `references/translation-rules.md` + project file. Keep all tags, paths, labels, values, states, units, warnings, responsible roles, acceptance criteria. Natural control Japanese per project style. Review-required: safety, switching authority, LOTO, chemical handling, statutory titles, unclear technical states.
+4. **Insert JP locally (no rebuild)** — per `references/editing-rules.md` + project-file exclusions. English blocks first, Japanese immediately after. Idempotent.
+5. **Language/technical QA** — per `references/qa-gates.md` checklists.
+6. **Structural/visual QA** — run the script gates below; render pages and inspect; re-run audits after final edits.
+7. **Clean delivery** — deliver the current bilingual DOCX; keep the source. Delete disabled copies only with user approval. Summarize changes; list reviewer reminders and open technical questions separately. Never call it "approved" until the user/approved reviewer approves.
 
-### 5. 言語・技術QA
-- 英語・日本語を行単位で比較。欠落・追加を検出。
-- target-equipment selectionセルを当該SOP原文とXML/段落レベルで照合。見出し・チェックボックス・機器名・タグの欠落・変更・並替・他SOP項目への置換があればFAIL。`scripts/audit_equipment_lists.py SOURCE.docx BILINGUAL.docx` を実行。
-- フローチャートを原文と照合しテキストインベントリを作成。分岐ラベル・キャプション・注釈・箱外テキストで日本語欠落があればFAIL。
-- Field Comments、notes、expected outcomes、サイドセルの未翻訳操作内容を確認。
-- タグ・状態・入出力・開閉・ON/OFF・隔離/復旧・単位・閾値・不等号を独立検証。
-- 反復英語フレーズの日本語一致性を確認（文脈が別途要求する場合を除く）。
-- パッケージ全体（本体・表・ヘッダ/フッタ・テキストボックス・シェイプ・SmartArt・コメント・ハイパーリンク）からクライアント企業名を検索。クライアント特定企業名が残っていないことを確認。削除が自然か検証。`Client`/`クライアント` は意味/文法が不完全になる場合のみ。
-- Activity Descriptionの段落-言語順序が完全英語ブロック→完全日本語ブロックか確認。日本語が英語ブロックを分断すればFAIL。
-- 下線内部サブ見出しごとにバイリンガル見出しが1つで、その英/日ペアが次サブ見出し前にあるか確認。複製見出し・下部にまとめた日本語・本文へ下線が継承されていればFAIL。
-- 未解決プレースホルダ・空Expected Outcomeセル・原文不整合・SME確認要の用語をリスト化。
+## Script gates (details and QA procedure in `references/qa-gates.md`)
 
-### 6. 構造・ビジュアルQA
-- **書式正規化（必須・ビルド直後）**：`deepcopy` 挿入によるフォント/太字/サイズの破綻を `scripts/normalize_format.py` で一括修正し、`scripts/audit_format.py`（違威0=PASS・exit 1=FAIL）で検証。`--font` はプロジェクト別（KSW=Meiryo UI）。詳細は `references/common-rules.md` §7。
-- `scripts/audit_docx.py` を原文とバイリンガル出力で実行。
-- target-equipment selection stepがある場合は `scripts/audit_equipment_lists.py` も実行。ゼロ不一致が必須。
-- `document.xml` と `numbering.xml` の各 `#` セルを検査。番号付き段落は「自動番号のみ（typed識別子なし）」か「typed識別子のみ（自動 `w:numPr` なし）」のいずれか。両方あればFAIL。
-- 表・メディア・図・インライン/フローティングシェイプ・パッケージ整合性を比較。予想外差分をすべて調査。
-- バイリンガルDOCXをページごとにレンダリングして検査。折返し・改ページ・結合セル・罫線・切抜き・写真/表包含・フローチャート・ヘッダ/フッタ・高密度日本語セルを点検。
-- レンダリング不可の場合はその限界を報告し、ビジュアルQA合格を主張しない。構造QAはレンダリングの代用にならない。
-- 最終編集後にDOCXを開き直して監査を再実行。
-- Wordが読み取り不可を報告した場合、その生成リビジョンの使用を停止。必要に応じレビュアーにWord修復コピーの保持/保存を依頼し、修復パッケージからのみ継続。
+- `scripts/audit_docx.py SOURCE.docx [MORE.docx] [--json]` — read-only structural audit.
+- `scripts/audit_equipment_lists.py SOURCE.docx BILINGUAL.docx [--json]` — required when a target-equipment step exists; exit 1 = FAIL.
+- `scripts/normalize_format.py OUTPUT.docx [--font ...]` — mandatory right after build (idempotent).
+- `scripts/inherit_color_emphasis.py OUTPUT.docx` — when source EN has partial coloring.
+- `scripts/audit_format.py OUTPUT.docx [--font ...]` — 0 violations = PASS, exit 1 = FAIL.
+- `scripts/build_flowchart_bilingual.py` — raster flowchart bilingualization (see `references/flowchart-overlay.md`).
 
-### 7. クリーン納品
-- 現行バイリンガルDOCXを納品、原文を保持。
-- ユーザーがクリーンアップを承認した場合のみ無効化されたバイリンガルコピーを削除。
-- 完了変更を要約し、レビュアーリマインダー・未解決技術問い合わせを別記。
-- ユーザー/承認レビュアーが承認するまで「承認済み」と呼ばない。
+## Minimum acceptance criteria
 
-## 最低受け入れ基準
+- English source preserved verbatim; Japanese natural for local Japanese engineers; English-maintained sections untouched.
+- Proper nouns, tags, paths, labels, values, states exact. target-equipment lists match this SOP's source exactly (no inheritance from reference SOPs).
+- EN/JP alignment and intentional text colors match. Photos/tables placed after both language blocks, kept in original cells.
+- Flowcharts keep the original visual system; all labels (boxes, branches, captions, annotations, outside-box) bilingual.
+- DOCX package integrity pass with explained structural diffs; page-by-page visual QA pass, or explicitly reported impossible.
 
-- 英語原文保持、日本語はローカル日本人エンジニアにとって自然。
-- 必須英語維持セクションは未翻訳。
-- 固有名・タグ・パス・ラベル・数値・状態は厳密保持。
-- target-equipmentリストは当該SOP原文と完全一致。参照SOPからの継承なし。
-- 英語/日本語の整列・意図的テキスト色が一致。
-- 写真・表は両言語ブロックの後に配置、元セル内に保持。
-- フローチャートは元のビジュアルシステムを保持し全ラベル（箱・分岐・キャプション・注釈・箱外）がバイリンガル。
-- DOCXパッケージ整合性合格。構造差は説明済み。
-- ページごとのビジュアルQA合格、または不可の場合は明示。
+## Adding a new project
 
-## スクリプト
+Create `projects/<project>.md` when a source arrives: record template structure, punctuation, glossary, English-maintained sections, numbering scheme, cautions. Check `projects/README.md` for cross-project conflict rules (comma width, chief-electrical-engineer translation, etc.) — mixing them up is strictly forbidden.
 
-- `scripts/audit_docx.py SOURCE.docx [MORE.docx] [--json]` — 読み取り専用の構造監査。ZIP整合性、パッケージパーツ数、メディア/図パーツ数、表・インラインシェイプ数、自動番号セル、自動+typed競合、ステップID、ナンバリングモード、クライアント名候補を報告。
-- `scripts/audit_equipment_lists.py SOURCE.docx BILINGUAL.docx [--json]` — target-equipment selectionリストを原文と出力で照合。不一致は必須FAIL（exit 1）。
+## User operation settings
 
-## プロジェクト別フォーマット管理（重要）
-
-**プロジェクトごとに文書フォーマットと翻訳ルールが異なる**。共通要素は本スキルが提供、固有要素は `projects/<project>.md` で別管理。翻訳開始前に必ず該当プロジェクトファイルを読む。新プロジェクト追加時は `projects/` に新ファイル作成。原文が届いたら判読してテンプレ構造・句読点・用語集・英語維持セクション・ナンバリング方式・固有注意事項を記録。
-
-## ユーザー運用設定
-
-- **plan mode 不使用**。「〇〇のbilingual作成」という指示があれば、確認・質問・plan modeに入らず、直ちにプロジェクト判定→03 Second Draft→04 Bilingual Procedure のワンパス実行に進む。
-- 対象ドラフトが不明な場合は最新ドラフト（最終番号フォルダ）を自動選択。
-- 既存の承認済み参照バイリンガルがある場合、それをベースにパッチ。
+- **No plan mode.** On an instruction like "〇〇のbilingual作成", skip confirmation/questions/plan mode and run the one-pass pipeline immediately: project identification → 03 Second Draft → 04 Bilingual Procedure.
+- If the target draft is unclear, auto-select the latest draft (highest-numbered folder).
+- If an approved reference bilingual exists, patch it as the base.

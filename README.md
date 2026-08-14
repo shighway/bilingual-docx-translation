@@ -5,7 +5,7 @@
 ## 特徴
 
 - **プロジェクト別フォーマット管理**：KIX1/KSW/STACK等のプロジェクト固有フォーマットと翻訳ルールを `projects/` で別管理。プロジェクト間で対立する規則（句読点・主任技術者訳・空Expected Outcomeの扱い等）の混入を防止。
-- **共通基盤**：全プロジェクト共通の運用ルール・QA手順を `references/common-rules.md` に集約。Word修復ファイルの扱い、idempotency、クライアント名の中和、参照階層等。
+- **共通基盤**：全プロジェクト共通のルールを `references/` にフェーズ別ファイルで集約（`translation-rules.md`・`editing-rules.md`・`qa-gates.md`・`flowchart-overlay.md`・`incident-log.md`）。Word修復ファイルの扱い、idempotency、クライアント名の中和、参照階層等。SKILL.mdの条件付き読み込み表で必要なものだけロード（トークン節約）。
 - **読み取り専用QAスクリプト**：構造監査と機器リスト照合を自動化。
 
 ## ディレクトリ構成
@@ -15,7 +15,11 @@ bilingual-docx-translation/
 ├── SKILL.md                       共通ワークフロー＋プロジェクト識別
 ├── README.md                      本ファイル
 ├── references/
-│   └── common-rules.md            共通運用ルール・QA手順
+│   ├── translation-rules.md       共通翻訳・提示規則（翻訳フェーズで読む）
+│   ├── editing-rules.md           XML編集の保全原則・Word修復取扱（挿入前に読む）
+│   ├── qa-gates.md                QAチェックリスト＋スクリプトゲート（QAフェーズで読む）
+│   ├── flowchart-overlay.md       ラスターフローチャートoverlay手順（該当SOPのみ）
+│   └── incident-log.md            事故記録（参照のみ）
 ├── projects/
 │   ├── README.md                  プロジェクト別管理の手順・対立規則一覧
 │   ├── kix1.md                    KIX1固有（VDCテンプレ・半角カンマ・第二種主任固定訳）
@@ -75,7 +79,7 @@ python scripts/inherit_color_emphasis.py OUTPUT_JP_EN.docx  # EN部分着色（S
 python scripts/audit_format.py OUTPUT_JP_EN.docx            # 違反で exit 1（全文太字・フォント混在・sz>36を検出）
 ```
 
-`deepcopy` 挿入は元英語ランの書式を無条件継承するため、正規化なしではフォント混在（宋体/メイリオ/Calibri）・本文太字・110pt(`sz=220`)級の破綻が必ず混入する。`audit_format.py` PASS を納品条件とする（詳細は `references/common-rules.md` §7）。
+`deepcopy` 挿入は元英語ランの書式を無条件継承するため、正規化なしではフォント混在（宋体/メイリオ/Calibri）・本文太字・110pt(`sz=220`)級の破綻が必ず混入する。`audit_format.py` PASS を納品条件とする（詳細は `references/qa-gates.md`）。
 
 ## 新プロジェクト追加手順
 
@@ -109,7 +113,7 @@ python scripts/audit_format.py OUTPUT_JP_EN.docx            # 違反で exit 1�
 
 ### 編集ポイント
 
-- **共通ルール・QA手順の修正**：`references/common-rules.md`
+- **共通ルール・QA手順の修正**：`references/`（翻訳規則=`translation-rules.md`、編集=`editing-rules.md`、QA=`qa-gates.md`、フローチャート=`flowchart-overlay.md`、事故記録=`incident-log.md`）
 - **プロジェクト固有ルール・用語・実装パターン**：`projects/<project>.md`（KSWなら `projects/ksw.md`）
 - **新プロジェクト追加**：上記「新プロジェクト追加手順」に従い `projects/<new>.md` を作成
 - **監査スクリプト**：`scripts/`（読み取り専用・破壊的変更不可）

@@ -1,6 +1,6 @@
 # KIX1 プロジェクト固有ルール
 
-KIX1データセンターEOP（VDCテンプレート）。共通ルールは `../references/common-rules.md`、本ファイルはKIX1固有の差分のみ。
+KIX1データセンターEOP（VDCテンプレート）。共通ルールは `../references/`（翻訳: `translation-rules.md`・編集: `editing-rules.md`・QA: `qa-gates.md`）、本ファイルはKIX1固有の差分のみ。
 
 ## 詳細スキル
 

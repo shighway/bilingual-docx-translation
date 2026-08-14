@@ -1,6 +1,6 @@
 # STACK プロジェクト固有ルール
 
-STACKデータセンターのEOP/SOP翻訳。**原文待ち**。原文DOCXとテンプレート参照が届いたら、以下を判読して記入。共通ルールは `../references/common-rules.md`。
+STACKデータセンターのEOP/SOP翻訳。**原文待ち**。原文DOCXとテンプレート参照が届いたら、以下を判読して記入。共通ルールは `../references/`（SKILL.mdの条件付き読み込み表参照）。
 
 ## 状態
 
