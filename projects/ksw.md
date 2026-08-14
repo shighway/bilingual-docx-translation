@@ -167,7 +167,20 @@ KSW核心用語の抜粋（完全版は同僚スキル `references/ksw-translati
 - **保護データは英語維持**：target-equipmentチェックボックス行（`□FP-1`等、指示段落のみ翻訳）、`[Attach Photo]`/`[Insert … Screenshot]`フラグ、写真（`wp:inline`）、赤stop-workバナー、`END PLANNED FIELD SWITCHING PLAN`、`BACKOUT PLAN OPTIONS`表全体、管理/事前実行セクション、Document Control。
 - **フローチャート**：`Flowchart:`見出しのインライン` / フローチャート:`化に加え、**ラスター画像自体のバイリンガル再作成が必須**（Rule 34／全意味ラベル翻訳）。参照プレセデント（SOP-306等）がフローチャート英語のみでも踏襲せず、必ず英日バイリンガル画像を生成して差し替える。再作成は後述「フローチャート画像バイリンガル再作成」の手順に従う。これを「レビュー課題」に回さないこと。
 - **ヘルパー**：`insert_jp_after(en_p, jp)`（段落クローン・run再構成・`w:br`分割挿入）、`append_inline(p, jp)`（見出し末尾に` / 日`追記）、`replace_text(p, text)`（見出し正規化）。挿入は段落インデックスではなく**要素参照**で（挿入で後続インデックスがずれるため）。`deepcopy`が`pPr`/`numPr`を保つので自動Part/itemナンバリングとリストレベルは保持される。
-- **QA 3ゲート**：(1) `audit_docx.py SOURCE BILINGUAL` — tables/inline_shapes/media/自動番号セル/package_parts/クライアント名候補が原文と完全一致、上昇するのは`table_paragraphs`と`japanese_paragraphs`のみ。(2) 全手順セルの英日ペアダンプで、各英語アクションに日本語ペアがあるか・保護データ未処理・英語維持セクション維持を確認。(3) Word COM（`Documents.Open`＋`SaveAs` PDF）で再保存し、修復ダイアログが出ないことを確認。修復報告があればそのリビジョン破棄→`03`から再ビルド。
+- **QA 3ゲート**：(1) `audit_docx.py SOURCE BILINGUAL` — tables/inline_shapes/media/自動番号セル/package_parts/クライアント名候補が原文と完全一致、上昇するのは`table_paragraphs`と`japanese_paragraphs`のみ。(2) 全手順セルの英日ペアダンプで、各英語アクションに日本語ペアがあるか・保護データ未処理・英語維持セクション維持を確認。(3) Word COM（`Documents.Open`（`OpenAndRepair=False`）＋`SaveAs` PDF）で再保存し、修復ダイアログ/例外が出ないことを確認。修復報告があればそのリビジョン破棄→`03`から再ビルド。
+
+### 書式正規化（必須・ビルド直後）
+
+挿入日本語ランは元英語ランの `rPr` を `deepcopy` で継承するため、フォント（宋体/メイリオ/Calibri混入）・太字（本文なのに太字）・サイズ（`w:sz val=220` = 110pt 等）が元ラン任せで破綻する。**全挿入完了後、納品前に必ず以下を実行**（べき等・再実行安全）：
+
+```bash
+# 本文フォントMeiryo UI・本文非太字・見出し（" / "区切り）太字維持・破損サイズ修正
+python scripts/normalize_format.py "04 Bilingual Procedure/KSW-SOP-XXX.docx"
+# 違反1件でもFAIL（exit 1）。0違反で合格
+python scripts/audit_format.py  "04 Bilingual Procedure/KSW-SOP-XXX.docx"
+```
+
+`audit_format.py` が FAIL なら納品不可。`w:sz` は半ポイント（`val=18`→9pt、`val=22`→11pt）。`val>36` は機械的に異常扱い。本文は9pt（`val=18`）。
 
 ### フローチャート画像バイリンガル再作成（必須・SOP-309検証）
 
@@ -176,9 +189,9 @@ KSW核心用語の抜粋（完全版は同僚スキル `references/ksw-translati
 1. **原文画像を特定**：`document.xml`の`r:embed`出現順と`document.xml.rels`で、`Flowchart:`セル内の画像がどの`word/media/imageN.*`か決定（SOP-309では`rId13`→`image2.png`）。
 2. **ラベル抽出**：画像の意味テキスト（ボックス内・分岐・キャプション・箱外）を全て書き出し（必要なら`analyze_image`等のOCR/視覚読取で）。
 3. **配色・サイズ取得**：`Pillow`で元画像の`size`と`getcolors`上位色（背景・ボックス色・テキスト色）を抽出。SOP-309例：白背景・紫`(112,48,160)`・緑`(84,130,53)`・濃紺テキスト`(34,63,89)`、399×1053。
-4. **同サイズで再描画**：元の縦横比・サイズを維持（`wp:extent`調整不要にするため）。工程区分ごとに元配色を再現（準備=薄紫・実行=薄緑 等）。各ボックスに英語（上）＋日本語（下）を `Meiryo`（`C:/Windows/Fonts/meiryo.ttc`）で中央寄せ。`\n`は`w:br`相当の改行で処理。ボックス間は元の矢印スタイル（下向き線＋三角等）で接続。
+4. **同サイズで再描画**：元の縦横比・サイズを維持（`wp:extent`調整不要にするため）。工程区分ごとに元配色を再現（準備=薄紫・実行=薄緑 等）。各ボックスに英語（上）＋日本語（下）を `Meiryo`（`C:/Windows/Fonts/meiryo.ttc`）で中央寄せ。`\n`は`w:br`相当の改行で処理。ボックス間は元の矢印スタイル（下向き線＋三角等）で接続。**配色の落とし穴（SOP-309事故）**：`getcolors`で取得した原本の**飽和色をそのまま塗りに使う**。淡いパステル（`(243,235,248)` 等）に変換しない。原文が飽和色背景＋白文字なら再作成も同じ（白文字`(255,255,255)`on飽和色）。文字色を濃紺等に変えない。矢印色も原本からサンプリング（例：濃紺`(64,76,91)`）。箱の角丸半径も原本に合わせる（原本が直角〜radius≈3なら同じ）。
 5. **画像差し替え**：`zipfile`でdocxを開き、該当`word/media/imageN.*`を新画像のバイト列で置換して再圧縮。ファイル名・パス・リレーションはそのまま（参照先変更不要）。
-6. **QA**：差し替え後 `audit_docx.py`（`inline_shapes`/`media_parts`/`tables`が原文と同一・`zip_integrity:True`）、画像の視覚読取で全ボックス英日表示・切抜き/重複なしを確認、Word COM再保存で修復ダイアログなしを確認。
+6. **QA**：差し替え後 `audit_docx.py`（`inline_shapes`/`media_parts`/`tables`が原文と同一・`zip_integrity:True`）、画像の視覚読取で全ボックス英日表示・切抜き/重複なしを確認、Word COM再保存で修復ダイアログなしを確認。**OCR検証必須**：再作成画像を `easyocr`（`pip install easyocr`）等で読み取り、全ボックスの英日テキストが欠損・切抜きなく描画されていることを確認する（目視・類推に頼らない）。フローチャート画像テキストの正確抽出に外部ビジョンAPIが使えない場合はOCRで代用。
 
 **注意**：
 - `wp:extent`（表示サイズEMU）を変えずに済むよう、元画像と同じ縦横比・サイズで再描画する。サイズを変える場合は `document.xml` の該当 `wp:extent` の `cx`/`cy` も同率で調整すること。

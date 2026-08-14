@@ -117,6 +117,15 @@ python scripts/audit_docx.py SOURCE.docx OUTPUT_JP_EN.docx
 # target-equipment selection照合（該当ステップがある場合）
 python scripts/audit_equipment_lists.py SOURCE.docx OUTPUT_JP_EN.docx
 # exit 0 = 完全一致、exit 1 = 不一致（必須FAIL）
+
+# 書式正規化（全挿入完了後・納品前に必須・べき等）
+# 挿入JPランのフォントをプロジェクト本文フォントに統一、本文=非太字、
+# 見出し(" / "区切り)=太字、破損サイズ(w:sz>36)を本文サイズに修正
+python scripts/normalize_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --body-size 18]
+
+# 書式QAゲート（違反1件でも exit 1 = 納品不可）
+# フォント統一・本文太字・破損サイズを検出
+python scripts/audit_format.py OUTPUT_JP_EN.docx [--font "Meiryo UI" --max-size 36]
 ```
 
 依存：`python-docx`、`lxml`。
@@ -124,3 +133,5 @@ python scripts/audit_equipment_lists.py SOURCE.docx OUTPUT_JP_EN.docx
 ```bash
 pip install python-docx lxml
 ```
+
+**書式ゲートは省略不可**：`deepcopy` ベースの挿入は元ランのフォント/太字/サイズを無条件継承するため、正規化なしだと宋体/メイリオ/Calibri混入・本文太字・110pt(`sz=220`)級の破綻が必ず混入する（SOP-308/309/310事故）。`normalize_format.py` → `audit_format.py` PASS を毎回確認する。`--font` はプロジェクト別（KSW=Meiryo UI、KIX1は別途）に指定。

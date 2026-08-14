@@ -80,6 +80,7 @@ description: データセンターEOP/SOPのWord文書を、プロジェクト�
 - 未解決プレースホルダ・空Expected Outcomeセル・原文不整合・SME確認要の用語をリスト化。
 
 ### 6. 構造・ビジュアルQA
+- **書式正規化（必須・ビルド直後）**：`deepcopy` 挿入によるフォント/太字/サイズの破綻を `scripts/normalize_format.py` で一括修正し、`scripts/audit_format.py`（違威0=PASS・exit 1=FAIL）で検証。`--font` はプロジェクト別（KSW=Meiryo UI）。詳細は `references/common-rules.md` §7。
 - `scripts/audit_docx.py` を原文とバイリンガル出力で実行。
 - target-equipment selection stepがある場合は `scripts/audit_equipment_lists.py` も実行。ゼロ不一致が必須。
 - `document.xml` と `numbering.xml` の各 `#` セルを検査。番号付き段落は「自動番号のみ（typed識別子なし）」か「typed識別子のみ（自動 `w:numPr` なし）」のいずれか。両方あればFAIL。
